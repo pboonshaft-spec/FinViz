@@ -85,8 +85,9 @@ coverage/
 .nyc_output/
 *.lcov
 
-# CSV Data Files
+# CSV Data Files (except sample-data examples)
 *.csv
+!sample-data/*.csv
 
 # Misc
 .sass-cache/
