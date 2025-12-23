@@ -6,6 +6,18 @@ Financial Analytics Dashboard - A web-based tool for visualizing and analyzing p
 
 ## Important Guidelines
 
+### Git Workflow
+
+**CRITICAL: Always use feature branches. Never push directly to main.**
+
+When making changes to this project:
+
+1. Create a feature branch before making any changes (e.g., `feat/feature-name`, `fix/bug-name`)
+2. Make your changes and commits on the feature branch
+3. Push the feature branch to remote
+4. Do NOT push or merge directly to main
+5. Main branch merges will be handled separately
+
 ### Sample Data Maintenance
 
 When modifying CSV parsing logic or adding support for new column types in the application:
