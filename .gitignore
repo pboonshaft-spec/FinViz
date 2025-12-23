@@ -1,0 +1,96 @@
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Node.js (if added later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.npm
+.eslintcache
+
+# Environment Variables and Secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+*.pem
+*.key
+secrets/
+credentials.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Docker
+.docker/
+docker-compose.override.yml
+.dockerignore
+
+# Build and Distribution
+dist/
+build/
+*.tar
+*.tar.gz
+*.zip
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+.cache/
+test.txt.save
+
+# Coverage and Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# CSV Data Files
+*.csv
+
+# Misc
+.sass-cache/
+.grunt/
+*.pid
+*.seed
+*.pid.lock

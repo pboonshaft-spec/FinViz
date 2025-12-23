@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  finance-dashboard:
+    build: .
+    container_name: finance-dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    restart: unless-stopped
