@@ -22,10 +22,12 @@ const props = defineProps({
 const { getCategoryConfig } = useChartConfigs();
 
 const hasCategories = computed(() => {
-  return Object.keys(props.data.categories).length > 0;
+  return props.data?.categories && Object.keys(props.data.categories).length > 0;
 });
 
 const chartData = computed(() => {
+  if (!props.data?.categories) return [];
+
   const categories = Object.keys(props.data.categories).slice(0, 10);
 
   return categories.map((cat, idx) => ({

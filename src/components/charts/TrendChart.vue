@@ -17,6 +17,13 @@ const props = defineProps({
 const { getTrendConfig } = useChartConfigs();
 
 const chartData = computed(() => {
+  if (!props.data?.dailyData) {
+    return {
+      categories: [],
+      series: []
+    };
+  }
+
   const days = Object.keys(props.data.dailyData).sort();
   const amounts = days.map(d => props.data.dailyData[d]);
 

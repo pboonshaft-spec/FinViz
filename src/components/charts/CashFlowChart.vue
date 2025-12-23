@@ -17,6 +17,13 @@ const props = defineProps({
 const { getCashFlowConfig } = useChartConfigs();
 
 const chartData = computed(() => {
+  if (!props.data?.monthlyData) {
+    return {
+      categories: [],
+      series: []
+    };
+  }
+
   const months = Object.keys(props.data.monthlyData);
   const netFlowData = months.map(m => ({
     value: props.data.monthlyData[m].net,

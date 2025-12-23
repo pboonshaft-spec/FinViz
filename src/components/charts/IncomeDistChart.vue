@@ -17,6 +17,10 @@ const props = defineProps({
 const { getIncomeDistConfig } = useChartConfigs();
 
 const chartData = computed(() => {
+  if (!props.data?.transactions) {
+    return [];
+  }
+
   const incomeTransactions = props.data.transactions.filter(t => t.amount > 0);
   const ranges = {
     '$0-100': 0,
