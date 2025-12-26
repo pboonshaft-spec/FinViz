@@ -2,10 +2,18 @@ version: '3.8'
 
 services:
   frontend:
-    build: .
-    container_name: finviz-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: finviz-frontend-dev
     ports:
-      - "8090:80"
+      - "8090:5173"
+    volumes:
+      - ./src:/app/src
+      - ./index.html:/app/index.html
+      - ./vite.config.js:/app/vite.config.js
+    environment:
+      - VITE_API_URL=http://localhost:8085
     depends_on:
       - backend
     restart: unless-stopped
@@ -20,14 +28,10 @@ services:
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
-      - DB_USER=${DB_USER:-finviz}
-      - DB_PASSWORD=${DB_PASSWORD:-finviz}
-      - DB_NAME=${DB_NAME:-finviz}
+      - DB_USER=finviz
+      - DB_PASSWORD=finviz
+      - DB_NAME=finviz
       - PORT=8080
-      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-me}
-      - PLAID_CLIENT_ID=${PLAID_CLIENT_ID:-}
-      - PLAID_SECRET=${PLAID_SECRET:-}
-      - PLAID_ENV=${PLAID_ENV:-sandbox}
     depends_on:
       mysql:
         condition: service_healthy
@@ -41,14 +45,14 @@ services:
     ports:
       - "3307:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
-      - MYSQL_DATABASE=${DB_NAME:-finviz}
-      - MYSQL_USER=${DB_USER:-finviz}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-finviz}
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=finviz
+      - MYSQL_USER=finviz
+      - MYSQL_PASSWORD=finviz
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
       interval: 5s
       timeout: 5s
       retries: 10
