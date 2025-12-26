@@ -11,22 +11,66 @@ export const COLORS = {
 };
 
 export function useChartConfigs() {
-  function getTimeSeriesConfig() {
+  function getTimeSeriesConfig(labels = []) {
     return {
-      style: {
+      chart: {
+        backgroundColor: '#FFFFFF',
+        color: '#1A1A1A',
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif",
-        chart: {
+        height: 400,
+        padding: {
+          top: 20,
+          right: 20,
+          bottom: 60,
+          left: 80
+        },
+        grid: {
+          show: true,
+          stroke: '#e5e7eb',
+          strokeWidth: 1,
+          labels: {
+            show: true,
+            color: '#1A1A1A',
+            fontSize: 14,
+            xAxisLabels: {
+              values: labels,
+              show: true,
+              fontSize: 14,
+              color: '#1A1A1A'
+            },
+            yAxis: {
+              show: true,
+              useNiceScale: true
+            }
+          }
+        },
+        legend: {
+          show: true,
+          fontSize: 14,
+          color: '#1A1A1A'
+        },
+        title: {
+          show: false
+        },
+        tooltip: {
+          show: true,
           backgroundColor: '#FFFFFF',
           color: '#1A1A1A',
-          height: 350,
-          legend: {
-            fontSize: 14
-          },
-          title: {
-            fontSize: 16,
-            color: '#1A1A1A',
-            bold: true
-          }
+          fontSize: 14,
+          borderRadius: 4,
+          borderColor: '#e5e7eb',
+          borderWidth: 1
+        }
+      },
+      line: {
+        strokeWidth: 2,
+        smooth: true,
+        area: {
+          useGradient: true,
+          opacity: 20
+        },
+        labels: {
+          show: false
         }
       },
       userOptions: {
@@ -42,7 +86,7 @@ export function useChartConfigs() {
         chart: {
           backgroundColor: '#FFFFFF',
           color: '#1A1A1A',
-          height: 380,
+          height: 400,
           layout: {
             labels: {
               dataLabels: {
@@ -51,15 +95,22 @@ export function useChartConfigs() {
               },
               value: {
                 show: true,
-                fontSize: 14
+                fontSize: 14,
+                prefix: '$'
+              },
+              percentage: {
+                show: true,
+                fontSize: 12
               }
             },
             donut: {
-              strokeWidth: 80,
+              strokeWidth: 100,
+              borderWidth: 2,
               useLabelSlot: true
             }
           },
           legend: {
+            show: true,
             fontSize: 12
           }
         }
@@ -70,30 +121,100 @@ export function useChartConfigs() {
     };
   }
 
-  function getCashFlowConfig() {
+  function getCashFlowConfig(labels = []) {
     return {
-      style: {
+      chart: {
+        backgroundColor: '#FFFFFF',
+        color: '#1A1A1A',
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif",
-        chart: {
-          backgroundColor: '#FFFFFF',
-          color: '#1A1A1A',
-          height: 350
+        height: 400,
+        padding: {
+          top: 20,
+          right: 20,
+          bottom: 60,
+          left: 80
+        },
+        grid: {
+          show: true,
+          stroke: '#e5e7eb'
+        },
+        legend: {
+          show: true,
+          fontSize: 14
         }
       },
+      labels: labels,
+      series: [
+        { name: 'Income', color: COLORS.income },
+        { name: 'Expenses', color: COLORS.expenses }
+      ],
       userOptions: {
         show: false
       }
     };
   }
 
-  function getTrendConfig() {
+  function getTrendConfig(labels = []) {
     return {
-      style: {
+      chart: {
+        backgroundColor: '#FFFFFF',
+        color: '#1A1A1A',
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif",
-        chart: {
+        height: 400,
+        padding: {
+          top: 20,
+          right: 20,
+          bottom: 60,
+          left: 80
+        },
+        grid: {
+          show: true,
+          stroke: '#e5e7eb',
+          strokeWidth: 1,
+          labels: {
+            show: true,
+            color: '#1A1A1A',
+            fontSize: 14,
+            xAxisLabels: {
+              values: labels,
+              show: true,
+              fontSize: 12,
+              color: '#1A1A1A',
+              rotation: -45
+            },
+            yAxis: {
+              show: true,
+              useNiceScale: true
+            }
+          }
+        },
+        legend: {
+          show: true,
+          fontSize: 14,
+          color: '#1A1A1A'
+        },
+        title: {
+          show: false
+        },
+        tooltip: {
+          show: true,
           backgroundColor: '#FFFFFF',
           color: '#1A1A1A',
-          height: 350
+          fontSize: 14,
+          borderRadius: 4,
+          borderColor: '#e5e7eb',
+          borderWidth: 1
+        }
+      },
+      line: {
+        strokeWidth: 2,
+        smooth: true,
+        area: {
+          useGradient: false,
+          opacity: 0
+        },
+        labels: {
+          show: false
         }
       },
       userOptions: {
@@ -106,12 +227,27 @@ export function useChartConfigs() {
     return {
       style: {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif",
+        backgroundColor: '#FFFFFF',
+        color: '#1A1A1A',
         chart: {
-          backgroundColor: '#FFFFFF',
-          color: '#1A1A1A',
-          height: 350
+          height: 400,
+          padding: {
+            top: 20,
+            right: 20,
+            bottom: 60,
+            left: 80
+          },
+          grid: {
+            show: true,
+            stroke: '#e5e7eb'
+          },
+          legend: {
+            show: true,
+            fontSize: 14
+          }
         }
       },
+      type: 'bar',
       userOptions: {
         show: false
       }

@@ -10,6 +10,7 @@
 <script setup>
 import { computed } from 'vue';
 import { VueDataUi } from 'vue-data-ui';
+import 'vue-data-ui/style.css';
 import { useChartConfigs, COLORS } from '../../composables/useChartConfigs.js';
 
 const props = defineProps({
@@ -32,7 +33,7 @@ const chartData = computed(() => {
 
   return categories.map((cat, idx) => ({
     name: cat,
-    value: props.data.categories[cat],
+    values: [props.data.categories[cat]],
     color: COLORS.categoryPalette[idx % COLORS.categoryPalette.length]
   }));
 });

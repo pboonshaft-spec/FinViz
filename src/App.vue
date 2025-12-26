@@ -7,8 +7,6 @@
 
     <FileUpload @files-parsed="handleFilesParsed" />
 
-    <DebugPanel v-if="debugLogs.length > 0" :logs="debugLogs" />
-
     <div v-if="processedData" class="stats-grid">
       <StatCard
         label="Total Income"
@@ -57,6 +55,10 @@
       <ChartCard title="Income Distribution">
         <IncomeDistChart :data="processedData" />
       </ChartCard>
+
+      <ChartCard title="Cash Flow Sankey" :fullWidth="true">
+        <SankeyChart :data="processedData" />
+      </ChartCard>
     </div>
 
     <div v-if="isLoading" class="loading">Processing your data...</div>
@@ -66,7 +68,6 @@
 <script setup>
 import { ref, computed } from 'vue';
 import FileUpload from './components/FileUpload.vue';
-import DebugPanel from './components/DebugPanel.vue';
 import StatCard from './components/StatCard.vue';
 import ChartCard from './components/ChartCard.vue';
 import TimeSeriesChart from './components/charts/TimeSeriesChart.vue';
@@ -74,11 +75,11 @@ import CategoryChart from './components/charts/CategoryChart.vue';
 import CashFlowChart from './components/charts/CashFlowChart.vue';
 import TrendChart from './components/charts/TrendChart.vue';
 import IncomeDistChart from './components/charts/IncomeDistChart.vue';
+import SankeyChart from './components/charts/SankeyChart.vue';
 import { useDataProcessor } from './composables/useDataProcessor.js';
 
 const processedData = ref(null);
 const isLoading = ref(false);
-const debugLogs = ref([]);
 
 const savingsRate = computed(() => {
   if (!processedData.value || processedData.value.totals.income === 0) return 0;
@@ -87,13 +88,11 @@ const savingsRate = computed(() => {
 
 const handleFilesParsed = async (filesData) => {
   isLoading.value = true;
-  debugLogs.value = [];
 
   const processor = useDataProcessor();
   const result = processor.processData(filesData);
 
   processedData.value = result.data;
-  debugLogs.value = result.logs;
 
   isLoading.value = false;
 };

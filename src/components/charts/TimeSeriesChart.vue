@@ -1,10 +1,16 @@
 <template>
-  <VueDataUi component="VueUiXy" :dataset="chartData" :config="config" />
+  <div v-if="hasData">
+    <VueDataUi component="VueUiXy" :dataset="chartData" :config="config" />
+  </div>
+  <div v-else class="no-data">
+    <p>No monthly data available</p>
+  </div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
 import { VueDataUi } from 'vue-data-ui';
+import 'vue-data-ui/style.css';
 import { useChartConfigs, COLORS } from '../../composables/useChartConfigs.js';
 
 const props = defineProps({
@@ -16,36 +22,49 @@ const props = defineProps({
 
 const { getTimeSeriesConfig } = useChartConfigs();
 
+const hasData = computed(() => {
+  return props.data?.monthlyData && Object.keys(props.data.monthlyData).length > 0;
+});
+
 const chartData = computed(() => {
   if (!props.data?.monthlyData) {
-    return {
-      categories: [],
-      series: []
-    };
+    return [];
   }
 
   const months = Object.keys(props.data.monthlyData);
-  const incomeData = months.map(m => props.data.monthlyData[m].income);
-  const expensesData = months.map(m => props.data.monthlyData[m].expenses);
 
-  return {
-    categories: months,
-    series: [
-      {
-        name: 'Income',
-        values: incomeData,
-        type: 'bar',
-        color: COLORS.income
-      },
-      {
-        name: 'Expenses',
-        values: expensesData,
-        type: 'bar',
-        color: COLORS.expenses
-      }
-    ]
-  };
+  return [
+    {
+      name: 'Income',
+      series: months.map(month => props.data.monthlyData[month].income || 0),
+      color: COLORS.income,
+      type: 'line',
+      useArea: true,
+      dataLabels: false,
+      smooth: true
+    },
+    {
+      name: 'Expenses',
+      series: months.map(month => props.data.monthlyData[month].expenses || 0),
+      color: COLORS.expenses,
+      type: 'line',
+      useArea: true,
+      dataLabels: false,
+      smooth: true
+    }
+  ];
 });
 
-const config = computed(() => getTimeSeriesConfig());
+const config = computed(() => {
+  const months = Object.keys(props.data?.monthlyData || {});
+  return getTimeSeriesConfig(months);
+});
 </script>
+
+<style scoped>
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+</style>

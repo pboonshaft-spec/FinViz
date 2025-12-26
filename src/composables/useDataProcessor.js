@@ -108,9 +108,12 @@ export function useDataProcessor() {
 
       if (amount === 0) return;
 
-      // Get category
-      let category = row[columns.categoryCol] || row[columns.descriptionCol] || 'Uncategorized';
+      // Get category and description
+      let category = row[columns.categoryCol] || 'Uncategorized';
       category = String(category).trim();
+
+      let description = row[columns.descriptionCol] || category;
+      description = String(description).trim();
 
       const month = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
       const day = date.toISOString().split('T')[0];
@@ -119,6 +122,7 @@ export function useDataProcessor() {
         date: date,
         amount: amount,
         category: category,
+        description: description,
         month: month,
         day: day,
         isExpense: isExpense || amount < 0

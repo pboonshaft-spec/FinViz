@@ -9,8 +9,10 @@
   },
   "dependencies": {
     "vue": "^3.4.0",
-    "vue-data-ui": "^2.1.89",
-    "papaparse": "^5.4.1"
+    "vue-data-ui": "^3.9.9",
+    "papaparse": "^5.4.1",
+    "apexsankey": "latest",
+    "@svgdotjs/svg.js": "^3.2.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
