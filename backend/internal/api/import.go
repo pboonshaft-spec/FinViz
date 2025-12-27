@@ -51,13 +51,21 @@ func handleCSVImport(w http.ResponseWriter, r *http.Request) {
 	var imported int
 	var errors []string
 
+	user := getUserFromContext(r)
+	if user == nil {
+		respondError(w, http.StatusUnauthorized, "Not authenticated")
+		return
+	}
+
 	switch importType {
 	case "assets":
-		imported, errors = importAssets(records)
+		imported, errors = importAssets(records, user.ID)
 	case "debts":
-		imported, errors = importDebts(records)
+		imported, errors = importDebts(records, user.ID)
+	case "transactions":
+		imported, errors = importTransactions(records, user.ID)
 	default:
-		respondError(w, http.StatusBadRequest, "Invalid import type. Use 'assets' or 'debts'")
+		respondError(w, http.StatusBadRequest, "Invalid import type. Use 'assets', 'debts', or 'transactions'")
 		return
 	}
 
@@ -74,7 +82,7 @@ func handleCSVImport(w http.ResponseWriter, r *http.Request) {
 
 // importAssets imports assets from CSV
 // Expected columns: name, type_id, current_value, custom_return (optional), custom_volatility (optional)
-func importAssets(records [][]string) (int, []string) {
+func importAssets(records [][]string, userID int) (int, []string) {
 	var imported int
 	var errors []string
 
@@ -139,8 +147,8 @@ func importAssets(records [][]string) (int, []string) {
 		}
 
 		_, err = db.DB.Exec(
-			`INSERT INTO assets (name, type_id, current_value, custom_return, custom_volatility) VALUES (?, ?, ?, ?, ?)`,
-			name, typeID, value, customReturn, customVol,
+			`INSERT INTO assets (user_id, name, type_id, current_value, custom_return, custom_volatility) VALUES (?, ?, ?, ?, ?, ?)`,
+			userID, name, typeID, value, customReturn, customVol,
 		)
 		if err != nil {
 			errors = append(errors, "Row "+strconv.Itoa(rowNum)+": "+err.Error())
@@ -154,7 +162,7 @@ func importAssets(records [][]string) (int, []string) {
 
 // importDebts imports debts from CSV
 // Expected columns: name, current_balance, interest_rate (optional), minimum_payment (optional)
-func importDebts(records [][]string) (int, []string) {
+func importDebts(records [][]string, userID int) (int, []string) {
 	var imported int
 	var errors []string
 
@@ -212,8 +220,116 @@ func importDebts(records [][]string) (int, []string) {
 		}
 
 		_, err = db.DB.Exec(
-			`INSERT INTO debts (name, current_balance, interest_rate, minimum_payment) VALUES (?, ?, ?, ?)`,
-			name, balance, rate, payment,
+			`INSERT INTO debts (user_id, name, current_balance, interest_rate, minimum_payment) VALUES (?, ?, ?, ?, ?)`,
+			userID, name, balance, rate, payment,
+		)
+		if err != nil {
+			errors = append(errors, "Row "+strconv.Itoa(rowNum)+": "+err.Error())
+			continue
+		}
+		imported++
+	}
+
+	return imported, errors
+}
+
+// importTransactions imports transactions from CSV
+// Expected columns: date, amount, category (optional), description (optional)
+func importTransactions(records [][]string, userID int) (int, []string) {
+	var imported int
+	var errors []string
+
+	// Find column indices from header
+	header := records[0]
+	cols := make(map[string]int)
+	for i, col := range header {
+		cols[strings.ToLower(strings.TrimSpace(col))] = i
+	}
+
+	// Required columns
+	dateIdx, hasDate := cols["date"]
+	amountIdx, hasAmount := cols["amount"]
+
+	if !hasDate || !hasAmount {
+		return 0, []string{"CSV must have columns: date, amount"}
+	}
+
+	// Optional columns
+	categoryIdx, hasCategory := cols["category"]
+	descIdx, hasDesc := cols["description"]
+	nameIdx, hasName := cols["name"]
+
+	// Income keywords for classification
+	incomeKeywords := []string{"income", "salary", "paycheck", "deposit", "dividend", "interest", "refund", "transfer in"}
+
+	for i, row := range records[1:] {
+		rowNum := i + 2
+
+		if len(row) <= dateIdx || len(row) <= amountIdx {
+			errors = append(errors, "Row "+strconv.Itoa(rowNum)+": missing required columns")
+			continue
+		}
+
+		dateStr := strings.TrimSpace(row[dateIdx])
+		if dateStr == "" {
+			errors = append(errors, "Row "+strconv.Itoa(rowNum)+": date is required")
+			continue
+		}
+
+		amountStr := strings.TrimSpace(row[amountIdx])
+		amountStr = strings.ReplaceAll(amountStr, "$", "")
+		amountStr = strings.ReplaceAll(amountStr, ",", "")
+		amount, err := strconv.ParseFloat(amountStr, 64)
+		if err != nil {
+			errors = append(errors, "Row "+strconv.Itoa(rowNum)+": invalid amount '"+row[amountIdx]+"'")
+			continue
+		}
+
+		// Get optional fields
+		var category, description, name string
+
+		if hasCategory && len(row) > categoryIdx {
+			category = strings.TrimSpace(row[categoryIdx])
+		}
+		if hasDesc && len(row) > descIdx {
+			description = strings.TrimSpace(row[descIdx])
+		}
+		if hasName && len(row) > nameIdx {
+			name = strings.TrimSpace(row[nameIdx])
+		}
+
+		// Use description as name if name not provided
+		if name == "" && description != "" {
+			name = description
+		}
+		if name == "" {
+			name = "Imported Transaction"
+		}
+
+		// Determine if income based on category/description keywords
+		combined := strings.ToLower(category + " " + description + " " + name)
+		isIncome := false
+		for _, kw := range incomeKeywords {
+			if strings.Contains(combined, kw) {
+				isIncome = true
+				break
+			}
+		}
+
+		// For Plaid convention: negative = income, positive = expense
+		// If this looks like income but amount is positive, make it negative
+		if isIncome && amount > 0 {
+			amount = -amount
+		}
+
+		// Normalize income category to match Plaid convention (uppercase INCOME)
+		if isIncome {
+			category = "INCOME"
+		}
+
+		_, err = db.DB.Exec(
+			`INSERT INTO transactions (user_id, amount, date, name, category, pending) VALUES (?, ?, ?, ?, ?, FALSE)`,
+			userID, amount, dateStr, name, category,
 		)
 		if err != nil {
 			errors = append(errors, "Row "+strconv.Itoa(rowNum)+": "+err.Error())

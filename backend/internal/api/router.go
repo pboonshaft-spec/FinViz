@@ -19,6 +19,9 @@ func NewRouter() http.Handler {
 	// Plaid status (public - to check if configured)
 	mux.HandleFunc("GET /api/plaid/status", handlePlaidStatus)
 
+	// Chat status (public - to check if configured)
+	mux.HandleFunc("GET /api/chat/status", handleChatStatus)
+
 	// Protected routes - wrap with auth middleware
 	protectedMux := http.NewServeMux()
 
@@ -55,7 +58,11 @@ func NewRouter() http.Handler {
 	protectedMux.HandleFunc("GET /api/transactions", handleGetTransactions)
 	protectedMux.HandleFunc("GET /api/transactions/summary", handleGetTransactionSummary)
 	protectedMux.HandleFunc("GET /api/transactions/categories", handleGetCategories)
+	protectedMux.HandleFunc("GET /api/transactions/debug", handleGetTransactionDebug)
 	protectedMux.HandleFunc("POST /api/transactions/sync", handleSyncTransactions)
+
+	// Chat endpoint
+	protectedMux.HandleFunc("POST /api/chat", handleChat)
 
 	// Apply auth middleware to protected routes
 	mux.Handle("/api/auth/me", AuthMiddleware(protectedMux))
@@ -68,6 +75,7 @@ func NewRouter() http.Handler {
 	mux.Handle("/api/plaid/", AuthMiddleware(protectedMux))
 	mux.Handle("/api/transactions", AuthMiddleware(protectedMux))
 	mux.Handle("/api/transactions/", AuthMiddleware(protectedMux))
+	mux.Handle("/api/chat", AuthMiddleware(protectedMux))
 
 	return corsMiddleware(mux)
 }

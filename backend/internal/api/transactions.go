@@ -127,9 +127,16 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 	var summary models.TransactionSummary
 
 	// Get total income (negative amounts in Plaid = money coming in)
+	// Also include INCOME and TRANSFER_IN categories regardless of amount sign (in case of data issues)
 	err := db.DB.QueryRow(`
 		SELECT COALESCE(SUM(ABS(amount)), 0) FROM transactions
-		WHERE user_id = ? AND date >= ? AND date <= ? AND amount < 0 AND pending = FALSE
+		WHERE user_id = ? AND date >= ? AND date <= ? AND pending = FALSE
+		AND (
+			amount < 0
+			OR category IN ('INCOME', 'INCOME_WAGES', 'INCOME_DIVIDENDS', 'INCOME_INTEREST', 'TRANSFER_IN')
+			OR subcategory LIKE 'INCOME%'
+			OR subcategory LIKE 'TRANSFER_IN%'
+		)
 	`, user.ID, startDate, endDate).Scan(&summary.TotalIncome)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
@@ -137,9 +144,12 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get total expenses (positive amounts in Plaid = money going out)
+	// Exclude income categories that might be miscategorized
 	err = db.DB.QueryRow(`
 		SELECT COALESCE(SUM(amount), 0) FROM transactions
 		WHERE user_id = ? AND date >= ? AND date <= ? AND amount > 0 AND pending = FALSE
+		AND category NOT IN ('INCOME', 'INCOME_WAGES', 'INCOME_DIVIDENDS', 'INCOME_INTEREST', 'TRANSFER_IN')
+		AND (subcategory IS NULL OR (subcategory NOT LIKE 'INCOME%' AND subcategory NOT LIKE 'TRANSFER_IN%'))
 	`, user.ID, startDate, endDate).Scan(&summary.TotalExpenses)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
@@ -148,11 +158,13 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 
 	summary.NetCashFlow = summary.TotalIncome - summary.TotalExpenses
 
-	// Get spending by category (only expenses)
+	// Get spending by category (only expenses, excluding income categories)
 	catRows, err := db.DB.Query(`
 		SELECT COALESCE(category, 'Uncategorized') as cat, SUM(amount) as total, COUNT(*) as cnt
 		FROM transactions
 		WHERE user_id = ? AND date >= ? AND date <= ? AND amount > 0 AND pending = FALSE
+		AND category NOT IN ('INCOME', 'INCOME_WAGES', 'INCOME_DIVIDENDS', 'INCOME_INTEREST', 'TRANSFER_IN')
+		AND (subcategory IS NULL OR (subcategory NOT LIKE 'INCOME%' AND subcategory NOT LIKE 'TRANSFER_IN%'))
 		GROUP BY category
 		ORDER BY total DESC
 	`, user.ID, startDate, endDate)
@@ -174,12 +186,23 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 		summary.ByCategory = []models.CategorySummary{}
 	}
 
-	// Get monthly breakdown
+	// Get monthly breakdown with proper income/expense classification
 	monthRows, err := db.DB.Query(`
 		SELECT
 			DATE_FORMAT(date, '%Y-%m') as month,
-			COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0) as income,
-			COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) as expenses
+			COALESCE(SUM(CASE
+				WHEN amount < 0 THEN ABS(amount)
+				WHEN category IN ('INCOME', 'INCOME_WAGES', 'INCOME_DIVIDENDS', 'INCOME_INTEREST', 'TRANSFER_IN') THEN ABS(amount)
+				WHEN subcategory LIKE 'INCOME%' OR subcategory LIKE 'TRANSFER_IN%' THEN ABS(amount)
+				ELSE 0
+			END), 0) as income,
+			COALESCE(SUM(CASE
+				WHEN amount > 0
+				AND category NOT IN ('INCOME', 'INCOME_WAGES', 'INCOME_DIVIDENDS', 'INCOME_INTEREST', 'TRANSFER_IN')
+				AND (subcategory IS NULL OR (subcategory NOT LIKE 'INCOME%' AND subcategory NOT LIKE 'TRANSFER_IN%'))
+				THEN amount
+				ELSE 0
+			END), 0) as expenses
 		FROM transactions
 		WHERE user_id = ? AND date >= ? AND date <= ? AND pending = FALSE
 		GROUP BY DATE_FORMAT(date, '%Y-%m')
@@ -325,6 +348,81 @@ func handleSyncTransactions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, result)
+}
+
+// handleGetTransactionDebug returns transaction statistics for debugging
+func handleGetTransactionDebug(w http.ResponseWriter, r *http.Request) {
+	user := getUserFromContext(r)
+	if user == nil {
+		respondError(w, http.StatusUnauthorized, "Not authenticated")
+		return
+	}
+
+	type DebugStats struct {
+		TotalCount        int     `json:"totalCount"`
+		IncomeCount       int     `json:"incomeCount"`
+		ExpenseCount      int     `json:"expenseCount"`
+		PendingCount      int     `json:"pendingCount"`
+		IncomeTotal       float64 `json:"incomeTotal"`
+		ExpenseTotal      float64 `json:"expenseTotal"`
+		PendingIncomeTotal float64 `json:"pendingIncomeTotal"`
+		Categories        map[string]int `json:"categories"`
+		SampleIncome      []map[string]interface{} `json:"sampleIncome"`
+	}
+
+	var stats DebugStats
+	stats.Categories = make(map[string]int)
+
+	// Get all transactions (no date filter)
+	rows, err := db.DB.Query(`
+		SELECT amount, pending, COALESCE(category, 'NULL') as cat, name, date
+		FROM transactions WHERE user_id = ?
+		ORDER BY date DESC
+	`, user.ID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var amount float64
+		var pending bool
+		var category, name, date string
+		if rows.Scan(&amount, &pending, &category, &name, &date) != nil {
+			continue
+		}
+
+		stats.TotalCount++
+		stats.Categories[category]++
+
+		if pending {
+			stats.PendingCount++
+			if amount < 0 {
+				stats.PendingIncomeTotal += -amount
+			}
+		}
+
+		if amount < 0 {
+			stats.IncomeCount++
+			stats.IncomeTotal += -amount
+			// Sample first 5 income transactions
+			if len(stats.SampleIncome) < 5 {
+				stats.SampleIncome = append(stats.SampleIncome, map[string]interface{}{
+					"name":     name,
+					"amount":   amount,
+					"category": category,
+					"date":     date,
+					"pending":  pending,
+				})
+			}
+		} else {
+			stats.ExpenseCount++
+			stats.ExpenseTotal += amount
+		}
+	}
+
+	respondJSON(w, http.StatusOK, stats)
 }
 
 // handleGetCategories returns distinct categories from user's transactions

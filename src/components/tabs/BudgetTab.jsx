@@ -1,6 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useFileUpload } from '../../hooks/useFileUpload';
-import { useDataProcessor } from '../../hooks/useDataProcessor';
 import { useApi } from '../../hooks/useApi';
 import StatCard from '../StatCard';
 import ChartCard from '../ChartCard';
@@ -22,10 +20,9 @@ function BudgetTab() {
   const [summary, setSummary] = useState(null);
   const [dateRange, setDateRange] = useState('30'); // days
   const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
-  const { handleFiles, isProcessing } = useFileUpload();
-  const { processData } = useDataProcessor();
-  const { getTransactions, getTransactionSummary, syncTransactions, loading } = useApi();
+  const { getTransactions, getTransactionSummary, syncTransactions, importCSV } = useApi();
 
   // Auto-sync and load Plaid transactions on mount
   useEffect(() => {
@@ -116,6 +113,7 @@ function BudgetTab() {
       amount: -t.amount, // Flip sign for chart convention
       description: t.name || t.merchantName || 'Transaction',
       category: t.category || 'Uncategorized',
+      subcategory: t.subcategory || '', // Include subcategory for better classification
       isExpense: t.amount > 0
     }));
 
@@ -133,21 +131,27 @@ function BudgetTab() {
   };
 
   const handleFilesSelected = async (files) => {
-    const parsedFiles = await handleFiles(files);
-
-    if (parsedFiles.length > 0) {
-      const { data, logs } = processData(parsedFiles);
-
-      // Merge CSV data with existing Plaid data
-      if (processedData) {
-        const mergedData = mergeDataSources(processedData, data);
-        setProcessedData(mergedData);
-      } else {
-        setProcessedData(data);
+    setIsImporting(true);
+    const importLogs = [];
+    try {
+      // Upload each file to the backend
+      for (const file of files) {
+        const result = await importCSV(file, 'transactions');
+        importLogs.push(`✓ Imported ${result.imported} transactions from ${file.name}`);
+        if (result.errors && result.errors.length > 0) {
+          result.errors.forEach(e => importLogs.push(`⚠ ${e}`));
+        }
       }
 
-      setDebugLogs(logs);
+      // Reload data from backend after import
       setCsvModalOpen(false);
+      setDebugLogs(importLogs);
+      await loadPlaidData();
+    } catch (err) {
+      console.error('Failed to import CSV:', err);
+      setDebugLogs([`✗ Import error: ${err.message}`]);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -216,8 +220,9 @@ function BudgetTab() {
             <div className="btn-group">
               {[
                 { value: '30', label: '30 Days' },
-                { value: '60', label: '60 Days' },
-                { value: '90', label: '90 Days' },
+                { value: '90', label: '3 Months' },
+                { value: '180', label: '6 Months' },
+                { value: '365', label: '1 Year' },
               ].map(opt => (
                 <button
                   key={opt.value}
@@ -232,6 +237,8 @@ function BudgetTab() {
           <AddDataDropdown onImportCSV={() => setCsvModalOpen(true)} />
         </div>
       </div>
+
+      <DebugPanel logs={debugLogs} />
 
       {!processedData ? (
         <div className="empty-state">
@@ -250,7 +257,6 @@ function BudgetTab() {
         </div>
       ) : (
         <>
-          <DebugPanel logs={debugLogs} />
 
           <div className="stats-grid">
             <StatCard
@@ -320,7 +326,7 @@ function BudgetTab() {
         isOpen={csvModalOpen}
         onClose={() => setCsvModalOpen(false)}
         onFilesSelected={handleFilesSelected}
-        isProcessing={isProcessing}
+        isProcessing={isImporting}
       />
     </div>
   );

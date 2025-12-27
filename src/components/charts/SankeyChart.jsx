@@ -57,7 +57,14 @@ function SankeyChart({ data }) {
     const expenseCategories = new Set([
       'TRAVEL', 'FOOD_AND_DRINK', 'FOOD', 'SHOPPING', 'ENTERTAINMENT',
       'TRANSPORTATION', 'UTILITIES', 'RENT', 'SUBSCRIPTION', 'HEALTHCARE',
-      'PERSONAL_CARE', 'GENERAL_MERCHANDISE', 'GROCERIES', 'GAS', 'AUTOMOTIVE'
+      'PERSONAL_CARE', 'GENERAL_MERCHANDISE', 'GROCERIES', 'GAS', 'AUTOMOTIVE',
+      'TRANSFER_OUT' // Outbound transfers are expenses
+    ]);
+
+    // Categories that are income even if they appear as "transfers"
+    const incomeCategories = new Set([
+      'INCOME', 'INCOME_WAGES', 'INCOME_DIVIDENDS', 'INCOME_INTEREST',
+      'TRANSFER_IN', 'TRANSFER_IN_ACCOUNT_TRANSFER', 'TRANSFER_IN_DEPOSIT'
     ]);
 
     // Aggregate income and expenses by category
@@ -65,14 +72,55 @@ function SankeyChart({ data }) {
     const expensesByCategory = new Map();
 
     transactions.forEach(t => {
-      if (t.amount > 0) {
-        // This is income - check if it's actually a refund
-        const upperCategory = (t.category || '').toUpperCase();
-        const isRefund = expenseCategories.has(upperCategory);
-        const category = isRefund ? 'Refunds' : (t.category || t.description || 'Other Income');
-        incomeByCategory.set(category, (incomeByCategory.get(category) || 0) + t.amount);
+      const upperCategory = (t.category || '').toUpperCase();
+      const upperSubcategory = (t.subcategory || '').toUpperCase();
+
+      // Check if this is income based on category (regardless of amount sign)
+      const isIncomeCategory = incomeCategories.has(upperCategory) ||
+                               incomeCategories.has(upperSubcategory) ||
+                               upperCategory.startsWith('INCOME') ||
+                               upperCategory === 'TRANSFER_IN' ||
+                               upperSubcategory.startsWith('INCOME');
+
+      // Check if this is a transfer that should be excluded or categorized specially
+      const isTransferOut = upperCategory === 'TRANSFER_OUT' ||
+                            upperSubcategory.includes('TRANSFER_OUT');
+      const isTransferIn = upperCategory === 'TRANSFER_IN' ||
+                           upperSubcategory.includes('TRANSFER_IN');
+
+      if (t.amount > 0 || isIncomeCategory) {
+        // This is income
+        if (t.amount <= 0 && !isIncomeCategory) {
+          // Actually an expense, skip
+          const category = t.category || 'Uncategorized';
+          expensesByCategory.set(category, (expensesByCategory.get(category) || 0) + Math.abs(t.amount));
+          return;
+        }
+
+        const isRefund = expenseCategories.has(upperCategory) && !isIncomeCategory;
+        let category;
+
+        if (isRefund) {
+          category = 'Refunds';
+        } else if (isIncomeCategory || upperCategory.startsWith('INCOME')) {
+          category = 'Paycheck/Income';
+        } else if (isTransferIn) {
+          category = 'Transfers In';
+        } else {
+          category = t.category || t.description || 'Other Income';
+        }
+
+        const amount = Math.abs(t.amount);
+        incomeByCategory.set(category, (incomeByCategory.get(category) || 0) + amount);
       } else {
-        const category = t.category || 'Uncategorized';
+        // This is an expense
+        let category = t.category || 'Uncategorized';
+
+        // Rename transfer out to be clearer
+        if (isTransferOut || category.toUpperCase() === 'TRANSFER') {
+          category = 'Transfers Out';
+        }
+
         expensesByCategory.set(category, (expensesByCategory.get(category) || 0) + Math.abs(t.amount));
       }
     });

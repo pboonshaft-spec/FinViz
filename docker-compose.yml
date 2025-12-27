@@ -28,6 +28,10 @@ services:
       - PLAID_CLIENT_ID=${PLAID_CLIENT_ID:-}
       - PLAID_SECRET=${PLAID_SECRET:-}
       - PLAID_ENV=${PLAID_ENV:-sandbox}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AURELIA_PROMPT_PATH=/app/config/aurelia_prompt.txt
+    volumes:
+      - ./backend/config:/app/config:ro
     depends_on:
       mysql:
         condition: service_healthy

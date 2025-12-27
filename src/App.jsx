@@ -4,9 +4,11 @@ import AuthPage from './components/auth/AuthPage';
 import BudgetTab from './components/tabs/BudgetTab';
 import NetWorthTab from './components/tabs/NetWorthTab';
 import SettingsTab from './components/tabs/SettingsTab';
+import ChatPanel from './components/chat/ChatPanel';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('budget');
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const { user, isAuthenticated, loading, logout } = useAuth();
 
   if (loading) {
@@ -25,7 +27,7 @@ function AppContent() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${isChatOpen ? 'chat-open' : ''}`}>
       <div className="container">
         <header className="header">
           <div className="header-content">
@@ -33,6 +35,16 @@ function AppContent() {
             <p>Visualize and analyze your financial data</p>
           </div>
           <div className="user-menu">
+            <button
+              className={`btn-chat-toggle ${isChatOpen ? 'active' : ''}`}
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              title="Chat with Aurelia"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span>Ask Aurelia</span>
+            </button>
             <span className="user-name">{user?.name}</span>
             <button className="btn btn-secondary btn-sm" onClick={logout}>
               Sign Out
@@ -80,6 +92,9 @@ function AppContent() {
           {activeTab === 'settings' && <SettingsTab />}
         </main>
       </div>
+
+      {/* Chat Panel */}
+      <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 }
