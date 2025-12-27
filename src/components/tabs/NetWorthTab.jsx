@@ -7,13 +7,15 @@ import DebtList from '../networth/DebtList';
 import AssetForm from '../networth/AssetForm';
 import DebtForm from '../networth/DebtForm';
 import MonteCarloChart from '../networth/MonteCarloChart';
+import SimulationInputs from '../networth/SimulationInputs';
 
 function NetWorthTab() {
   const [assets, setAssets] = useState([]);
   const [debts, setDebts] = useState([]);
   const [assetTypes, setAssetTypes] = useState([]);
   const [projection, setProjection] = useState(null);
-  const [projectionYears, setProjectionYears] = useState(10);
+  const [simulationParams, setSimulationParams] = useState({});
+  const [simulationLoading, setSimulationLoading] = useState(false);
   const [showAssetForm, setShowAssetForm] = useState(false);
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState(null);
@@ -67,11 +69,14 @@ function NetWorthTab() {
 
   // Run Monte Carlo simulation
   const handleRunSimulation = async () => {
+    setSimulationLoading(true);
     try {
-      const result = await runMonteCarlo(projectionYears);
+      const result = await runMonteCarlo(simulationParams);
       setProjection(result);
     } catch (err) {
       console.error('Failed to run simulation:', err);
+    } finally {
+      setSimulationLoading(false);
     }
   };
 
@@ -253,43 +258,21 @@ function NetWorthTab() {
       </div>
 
       <ChartCard title="Monte Carlo Projection" fullWidth>
-        <div className="monte-carlo-controls">
-          <div className="timeframe-selector">
-            <label>Projection Timeframe:</label>
-            <div className="btn-group">
-              {[5, 10, 20, 30].map(years => (
-                <button
-                  key={years}
-                  className={`btn btn-sm ${projectionYears === years ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => {
-                    setProjectionYears(years);
-                    setProjection(null);
-                  }}
-                >
-                  {years} Years
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            className="btn btn-primary"
-            onClick={handleRunSimulation}
-            disabled={loading || assets.length === 0}
-          >
-            {loading ? 'Running...' : 'Run Simulation'}
-          </button>
-        </div>
-
         {assets.length === 0 ? (
           <div className="empty-state-small">
             <p>Add assets to run Monte Carlo projections</p>
           </div>
-        ) : projection ? (
-          <MonteCarloChart projection={projection} />
         ) : (
-          <div className="empty-state-small">
-            <p>Click "Run Simulation" to project your net worth</p>
-          </div>
+          <>
+            <SimulationInputs
+              params={simulationParams}
+              onChange={setSimulationParams}
+              onRun={handleRunSimulation}
+              loading={simulationLoading}
+              disabled={assets.length === 0}
+            />
+            {projection && <MonteCarloChart projection={projection} />}
+          </>
         )}
       </ChartCard>
     </div>

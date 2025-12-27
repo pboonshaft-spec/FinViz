@@ -87,10 +87,12 @@ export function useApi() {
   }), [request]);
 
   // Monte Carlo API
-  const runMonteCarlo = useCallback((years) => request('/api/monte-carlo', {
-    method: 'POST',
-    body: JSON.stringify({ years }),
-  }), [request]);
+  const runMonteCarlo = useCallback((params = {}) => {
+    return request('/api/monte-carlo', {
+      method: 'POST',
+      body: JSON.stringify({ params }),
+    });
+  }, [request]);
 
   // CSV Import API
   const importCSV = useCallback(async (file, type) => {
