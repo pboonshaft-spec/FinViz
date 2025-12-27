@@ -1,11 +1,68 @@
 version: '3.8'
 
 services:
-  finance-dashboard:
+  frontend:
     build: .
-    container_name: finance-dashboard
+    container_name: finviz-frontend
     ports:
-      - "8080:80"
-    volumes:
-      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - "8090:80"
+    depends_on:
+      - backend
     restart: unless-stopped
+    networks:
+      - finviz-network
+
+  backend:
+    build: ./backend
+    container_name: finviz-backend
+    ports:
+      - "8085:8080"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=${DB_USER:-finviz}
+      - DB_PASSWORD=${DB_PASSWORD:-finviz}
+      - DB_NAME=${DB_NAME:-finviz}
+      - PORT=8080
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-me}
+      - PLAID_CLIENT_ID=${PLAID_CLIENT_ID:-}
+      - PLAID_SECRET=${PLAID_SECRET:-}
+      - PLAID_ENV=${PLAID_ENV:-sandbox}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AURELIA_PROMPT_PATH=/app/config/aurelia_prompt.txt
+    volumes:
+      - ./backend/config:/app/config:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - finviz-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: finviz-mysql
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
+      - MYSQL_DATABASE=${DB_NAME:-finviz}
+      - MYSQL_USER=${DB_USER:-finviz}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-finviz}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - finviz-network
+
+networks:
+  finviz-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
