@@ -317,6 +317,116 @@ body {
   color: var(--color-expenses);
 }
 
+/* Categorized List */
+.categorized-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.category-group {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.category-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-secondary);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.category-header:hover {
+  background: var(--bg-hover);
+}
+
+.category-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.category-header .collapse-icon {
+  display: inline-block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.category-header .collapse-icon.open {
+  transform: rotate(90deg);
+}
+
+.category-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+
+.category-icon.asset-icon {
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--color-income);
+}
+
+.category-icon.debt-icon {
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--color-expenses);
+}
+
+.category-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.category-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.category-total {
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+}
+
+.category-total.positive {
+  color: var(--color-income);
+}
+
+.category-total.negative {
+  color: var(--color-expenses);
+}
+
+.category-items {
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.category-items .item-card {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  padding-left: calc(var(--spacing-lg) + 40px);
+}
+
+.category-items .item-card:last-child {
+  border-bottom: none;
+}
+
 .empty-list {
   text-align: center;
   padding: var(--spacing-xl);
@@ -538,6 +648,365 @@ body {
   text-align: center;
   padding: var(--spacing-xl) var(--spacing-md);
   color: var(--text-muted);
+}
+
+/* Simulation Inputs */
+.simulation-inputs {
+  margin-bottom: var(--spacing-xl);
+}
+
+.simulation-inputs .input-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.simulation-inputs .input-section.essential {
+  padding: var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.simulation-inputs .input-section.collapsible {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.simulation-inputs .section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.simulation-inputs .section-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.simulation-inputs .toggle-icon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.simulation-inputs .toggle-icon.open {
+  transform: rotate(90deg);
+}
+
+.simulation-inputs .section-content {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+}
+
+.simulation-inputs .input-row {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.simulation-inputs .input-row:last-child {
+  margin-bottom: 0;
+}
+
+.simulation-inputs .input-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.simulation-inputs .input-group.wide {
+  flex: 2;
+}
+
+.simulation-inputs .input-group label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.simulation-inputs .input-group input,
+.simulation-inputs .input-group select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+}
+
+.simulation-inputs .input-group input:focus,
+.simulation-inputs .input-group select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.simulation-inputs .input-with-prefix,
+.simulation-inputs .input-with-suffix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.simulation-inputs .input-with-prefix input {
+  padding-left: 1.75rem;
+}
+
+.simulation-inputs .input-with-suffix input {
+  padding-right: 2rem;
+}
+
+.simulation-inputs .prefix,
+.simulation-inputs .suffix {
+  position: absolute;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.simulation-inputs .prefix {
+  left: var(--spacing-sm);
+}
+
+.simulation-inputs .suffix {
+  right: var(--spacing-sm);
+}
+
+.simulation-inputs .input-hint {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+.simulation-inputs .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.simulation-inputs .checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.simulation-inputs .checkbox-label span:first-of-type {
+  color: var(--text-primary);
+}
+
+.simulation-inputs .checkbox-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.simulation-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.simulation-actions .btn-lg {
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: 1rem;
+}
+
+.simulation-info {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .simulation-inputs .input-row {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+}
+
+/* Success Rate Banner */
+.success-rate-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border-left: 4px solid;
+  margin-bottom: var(--spacing-lg);
+}
+
+.success-rate-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.success-rate-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.success-rate-label strong {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.success-rate-label span {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.success-rate-info {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  max-width: 200px;
+  text-align: right;
+}
+
+/* Summary Stats Secondary */
+.summary-stats.secondary {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.summary-stat .stat-value.positive {
+  color: var(--color-income);
+}
+
+.summary-stat .stat-value.negative {
+  color: var(--color-expenses);
+}
+
+/* Milestones Section */
+.milestones-section {
+  margin-top: var(--spacing-lg);
+}
+
+.milestones-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.milestones-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.milestone-card {
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.milestone-target {
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.milestone-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.milestone-probability {
+  color: var(--color-income);
+}
+
+/* Insights Section */
+.insights-section {
+  margin-top: var(--spacing-lg);
+}
+
+.insights-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.insights-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.insight-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border-left: 3px solid;
+}
+
+.insight-card.success {
+  border-color: var(--color-income);
+}
+
+.insight-card.info {
+  border-color: var(--color-primary);
+}
+
+.insight-card.warning {
+  border-color: #f59e0b;
+}
+
+.insight-card.opportunity {
+  border-color: #06b6d4;
+}
+
+.insight-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.insight-content {
+  flex: 1;
+}
+
+.insight-content strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.insight-content p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 /* Error Banner */
@@ -1709,4 +2178,33 @@ body {
 .chat-metric-change.trend-down {
   color: var(--color-expenses);
   background: rgba(255, 107, 107, 0.1);
+}
+
+/* ApexCharts Dark Mode Overrides */
+.apexcharts-menu {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.apexcharts-menu-item {
+  color: var(--text-primary) !important;
+}
+
+.apexcharts-menu-item:hover {
+  background: var(--bg-hover) !important;
+}
+
+.apexcharts-toolbar {
+  z-index: 10;
+}
+
+.apexcharts-menu-icon svg,
+.apexcharts-reset-icon svg,
+.apexcharts-zoom-icon svg {
+  fill: var(--text-muted) !important;
+}
+
+.apexcharts-menu-icon:hover svg {
+  fill: var(--text-primary) !important;
 }

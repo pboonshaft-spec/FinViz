@@ -18,6 +18,12 @@ func init() {
 	plaidClient = plaid.NewClient()
 }
 
+// liabilityDetails holds interest rate and minimum payment for a liability account
+type liabilityDetails struct {
+	InterestRate   *float64
+	MinimumPayment *float64
+}
+
 // handlePlaidStatus returns whether Plaid is configured
 func handlePlaidStatus(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]bool{
@@ -265,6 +271,39 @@ func handleSyncAccounts(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Fetch liability details (interest rates, minimum payments)
+		liabilityInfo := make(map[string]liabilityDetails)
+		liabResp, err := plaidClient.GetLiabilities(accessToken)
+		if err != nil {
+			// Liabilities may not be available for all account types - continue without
+			fmt.Printf("Note: Could not fetch liabilities for item %d: %v\n", itemID, err)
+		} else {
+			// Build lookup map from liability data
+			for _, credit := range liabResp.Liabilities.Credit {
+				details := liabilityDetails{MinimumPayment: credit.MinimumPayment}
+				// Use purchase APR if available, otherwise first APR
+				for _, apr := range credit.APRs {
+					if apr.APRType == "purchase_apr" || details.InterestRate == nil {
+						rate := apr.APRPercentage
+						details.InterestRate = &rate
+					}
+				}
+				liabilityInfo[credit.AccountID] = details
+			}
+			for _, mortgage := range liabResp.Liabilities.Mortgage {
+				liabilityInfo[mortgage.AccountID] = liabilityDetails{
+					InterestRate:   &mortgage.InterestRatePercentage,
+					MinimumPayment: mortgage.NextMonthlyPayment,
+				}
+			}
+			for _, student := range liabResp.Liabilities.Student {
+				liabilityInfo[student.AccountID] = liabilityDetails{
+					InterestRate:   &student.InterestRatePercentage,
+					MinimumPayment: student.MinimumPaymentAmount,
+				}
+			}
+		}
+
 		for _, acc := range accountsResp.Accounts {
 			syncResult.SyncedAccounts++
 
@@ -291,18 +330,29 @@ func handleSyncAccounts(w http.ResponseWriter, r *http.Request) {
 					balance = *acc.Balances.Current
 				}
 
+				// Get interest rate and minimum payment from liabilities
+				var interestRate, minPayment *float64
+				if details, ok := liabilityInfo[acc.AccountID]; ok {
+					interestRate = details.InterestRate
+					minPayment = details.MinimumPayment
+				}
+
 				if err == nil {
-					// Update existing debt
-					_, err = db.DB.Exec(`UPDATE debts SET current_balance = ?, updated_at = NOW() WHERE id = ?`, balance, existingID)
+					// Update existing debt with interest rate and minimum payment
+					_, err = db.DB.Exec(`
+						UPDATE debts
+						SET current_balance = ?, interest_rate = ?, minimum_payment = ?, updated_at = NOW()
+						WHERE id = ?
+					`, balance, interestRate, minPayment, existingID)
 					if err == nil {
 						syncResult.UpdatedDebts++
 					}
 				} else {
-					// Create new debt
+					// Create new debt with interest rate and minimum payment
 					_, err = db.DB.Exec(`
-						INSERT INTO debts (user_id, name, current_balance, plaid_account_id)
-						VALUES (?, ?, ?, ?)
-					`, user.ID, acc.Name, balance, acc.AccountID)
+						INSERT INTO debts (user_id, name, current_balance, interest_rate, minimum_payment, plaid_account_id)
+						VALUES (?, ?, ?, ?, ?, ?)
+					`, user.ID, acc.Name, balance, interestRate, minPayment, acc.AccountID)
 					if err == nil {
 						syncResult.NewDebts++
 					}

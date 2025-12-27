@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/finviz/backend/internal/db"
 	"github.com/finviz/backend/internal/models"
@@ -22,10 +23,25 @@ func handleMonteCarlo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate years
-	if req.Years <= 0 || req.Years > 50 {
-		respondError(w, http.StatusBadRequest, "Years must be between 1 and 50")
+	// Initialize params with defaults if not provided
+	params := req.Params
+	if params == nil {
+		defaultParams := models.DefaultSimulationParams()
+		params = &defaultParams
+	}
+
+	// Validate time horizon
+	if params.TimeHorizonYears > 80 {
+		respondError(w, http.StatusBadRequest, "Time horizon must be 80 years or less")
 		return
+	}
+
+	// Validate ages if provided
+	if params.CurrentAge > 0 && params.RetirementAge > 0 {
+		if params.RetirementAge < params.CurrentAge {
+			respondError(w, http.StatusBadRequest, "Retirement age must be greater than current age")
+			return
+		}
 	}
 
 	// Fetch all assets with their types for this user
@@ -42,9 +58,12 @@ func handleMonteCarlo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Run Monte Carlo simulation
-	result := simulation.RunMonteCarlo(assets, debts, req.Years)
+	// Filter out credit card debt if requested
+	if params.ExcludeCreditCardDebt {
+		debts = filterOutCreditCardDebt(debts)
+	}
 
+	result := simulation.RunMonteCarloWithParams(assets, debts, params)
 	respondJSON(w, http.StatusOK, result)
 }
 
@@ -99,4 +118,32 @@ func fetchDebtsForUser(userID int) ([]models.Debt, error) {
 	}
 
 	return debts, nil
+}
+
+// filterOutCreditCardDebt removes credit card debt from the list
+// Credit cards are identified by keywords in the name
+func filterOutCreditCardDebt(debts []models.Debt) []models.Debt {
+	filtered := make([]models.Debt, 0, len(debts))
+	for _, d := range debts {
+		if !isCreditCardDebt(d.Name) {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered
+}
+
+// isCreditCardDebt checks if a debt name indicates a credit card
+func isCreditCardDebt(name string) bool {
+	lower := strings.ToLower(name)
+	creditKeywords := []string{
+		"credit card", "credit", "card", "visa", "mastercard",
+		"amex", "american express", "discover", "chase sapphire",
+		"capital one", "citi", "barclays",
+	}
+	for _, kw := range creditKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
 }
