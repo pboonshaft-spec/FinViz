@@ -1,33 +1,44 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Chart from 'react-apexcharts';
 import { useChartConfigs } from '../../hooks/useChartConfigs';
 
 function CashFlowChart({ data }) {
   const { getCashFlowOptions } = useChartConfigs();
 
-  if (!data || !data.monthlyData || Object.keys(data.monthlyData).length === 0) {
+  const chartData = useMemo(() => {
+    if (!data || !data.monthlyData || Object.keys(data.monthlyData).length === 0) {
+      return null;
+    }
+
+    // Sort months chronologically (keys are in YYYY-MM format)
+    const months = Object.keys(data.monthlyData).sort();
+
+    // Format month labels for display (YYYY-MM -> "MMM YYYY")
+    const monthLabels = months.map(m => {
+      const [year, month] = m.split('-');
+      const date = new Date(year, parseInt(month) - 1);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+    });
+
+    const netFlow = months.map(m => data.monthlyData[m].net);
+
+    const series = [
+      { name: 'Net Cash Flow', data: netFlow }
+    ];
+
+    const options = getCashFlowOptions(monthLabels);
+
+    return { series, options };
+  }, [data, getCashFlowOptions]);
+
+  if (!chartData) {
     return <p style={{ textAlign: 'center', padding: '40px', color: '#999' }}>No data available</p>;
   }
 
-  // Sort months chronologically
-  const months = Object.keys(data.monthlyData).sort((a, b) => {
-    const dateA = new Date(a);
-    const dateB = new Date(b);
-    return dateA - dateB;
-  });
-
-  const netFlow = months.map(m => data.monthlyData[m].net);
-
-  const series = [
-    { name: 'Net Cash Flow', data: netFlow }
-  ];
-
-  const options = getCashFlowOptions(months);
-
   return (
     <Chart
-      options={options}
-      series={series}
+      options={chartData.options}
+      series={chartData.series}
       type="bar"
       height={350}
     />

@@ -32,6 +32,11 @@ services:
       - DB_PASSWORD=finviz
       - DB_NAME=finviz
       - PORT=8080
+      - JWT_SECRET=${JWT_SECRET}
+      - PLAID_CLIENT_ID=${PLAID_CLIENT_ID}
+      - PLAID_SECRET=${PLAID_SECRET}
+      - PLAID_ENV=${PLAID_ENV}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     depends_on:
       mysql:
         condition: service_healthy
