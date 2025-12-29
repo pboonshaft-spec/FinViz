@@ -1,9 +1,25 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import ApexSankey from 'apexsankey';
 
 function SankeyChart({ data }) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMenu]);
 
   useEffect(() => {
     if (!containerRef.current || !data?.transactions?.length) return;
@@ -33,11 +49,19 @@ function SankeyChart({ data }) {
       chartRef.current = new ApexSankey(containerRef.current, options);
       chartRef.current.render(sankeyData);
 
-      // Hide export button if it exists (fallback)
-      const exportBtn = containerRef.current.querySelector('button');
-      if (exportBtn) {
-        exportBtn.style.display = 'none';
-      }
+      // Remove all default export buttons completely (not just hide)
+      setTimeout(() => {
+        const buttons = containerRef.current.querySelectorAll('button');
+        buttons.forEach(btn => {
+          btn.remove();
+        });
+
+        // Also remove any export-related elements
+        const exportElements = containerRef.current.querySelectorAll('[class*="export"], [class*="menu"], [id*="export"]');
+        exportElements.forEach(el => {
+          el.remove();
+        });
+      }, 100);
     } catch (error) {
       console.error('Error rendering Sankey chart:', error);
     }
@@ -48,6 +72,26 @@ function SankeyChart({ data }) {
       }
     };
   }, [data]);
+
+  const handleDownload = (format) => {
+    if (!containerRef.current) return;
+
+    const canvas = containerRef.current.querySelector('canvas');
+    if (!canvas) return;
+
+    const link = document.createElement('a');
+    link.download = `sankey-chart.${format}`;
+
+    if (format === 'png') {
+      link.href = canvas.toDataURL('image/png');
+    } else if (format === 'svg') {
+      // For SVG, we'll use PNG as fallback since canvas doesn't natively support SVG export
+      link.href = canvas.toDataURL('image/png');
+    }
+
+    link.click();
+    setShowMenu(false);
+  };
 
   const buildSankeyData = (transactions) => {
     const nodes = [];
@@ -193,15 +237,109 @@ function SankeyChart({ data }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        minHeight: '500px',
-        background: 'transparent',
-        borderRadius: '8px'
-      }}
-    />
+    <div ref={wrapperRef} style={{ position: 'relative', width: '100%', minHeight: '500px' }}>
+      {/* Custom Toolbar matching ApexCharts style */}
+      <div style={{
+        position: 'absolute',
+        top: '0',
+        right: '0',
+        zIndex: 11,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px'
+      }}>
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#6E7079',
+              fontSize: '14px',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#6E7079'}
+            title="Menu"
+          >
+            {/* Hamburger icon (three lines) */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+            </svg>
+          </button>
+
+          {/* Dropdown Menu */}
+          {showMenu && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              right: '0',
+              marginTop: '4px',
+              background: '#2b2b2f',
+              border: '1px solid #3f3f46',
+              borderRadius: '4px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+              minWidth: '140px',
+              zIndex: 1000
+            }}>
+              <button
+                onClick={() => handleDownload('png')}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#e5e7eb',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#3f3f46'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                Download PNG
+              </button>
+              <button
+                onClick={() => handleDownload('svg')}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#e5e7eb',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'background 0.15s ease',
+                  borderTop: '1px solid #3f3f46'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#3f3f46'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                Download SVG
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Chart Container */}
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          minHeight: '500px',
+          background: 'transparent',
+          borderRadius: '8px'
+        }}
+      />
+    </div>
   );
 }
 

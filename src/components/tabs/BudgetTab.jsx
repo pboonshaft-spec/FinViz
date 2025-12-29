@@ -21,6 +21,7 @@ function BudgetTab() {
   const [dateRange, setDateRange] = useState('30'); // days
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { getTransactions, getTransactionSummary, syncTransactions, importCSV } = useApi();
 
@@ -46,24 +47,41 @@ function BudgetTab() {
   };
 
   const loadPlaidData = async () => {
+    setIsLoading(true);
+    setProcessedData(null); // Clear old data immediately to force re-render
+
     const endDate = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - parseInt(dateRange) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    console.log(`Loading data for date range: ${startDate} to ${endDate} (${dateRange} days)`);
 
     try {
       const [txns, sum] = await Promise.all([
         getTransactions(startDate, endDate),
         getTransactionSummary(startDate, endDate)
       ]);
+
+      console.log(`Received ${txns?.length || 0} transactions`);
+
       setTransactions(txns || []);
       setSummary(sum);
 
       // Convert to processedData format for charts
       if (txns && txns.length > 0) {
         const chartData = convertToChartFormat(txns, sum);
+        console.log('Chart data monthlyData keys:', Object.keys(chartData.monthlyData));
+        console.log('Chart data:', chartData);
         setProcessedData(chartData);
+      } else {
+        // Clear charts if no data
+        console.log('No transactions received, clearing data');
+        setProcessedData(null);
       }
     } catch (err) {
       console.error('Failed to load transactions:', err);
+      setProcessedData(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -74,9 +92,12 @@ function BudgetTab() {
     const dailyData = {};
 
     txns.forEach(t => {
-      // Parse date
-      const date = new Date(t.date);
-      const monthKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      // Parse date explicitly to avoid timezone issues
+      // t.date is in YYYY-MM-DD format
+      const dateParts = t.date.split('-');
+      const year = dateParts[0];
+      const month = dateParts[1]; // Already zero-padded
+      const monthKey = `${year}-${month}`;
       const dayKey = t.date; // Already in YYYY-MM-DD format
 
       // Initialize monthly bucket
@@ -240,7 +261,17 @@ function BudgetTab() {
 
       <DebugPanel logs={debugLogs} />
 
-      {!processedData ? (
+      {isLoading ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+            </svg>
+          </div>
+          <h2>Loading transactions...</h2>
+          <p>Fetching data for the selected time period.</p>
+        </div>
+      ) : !processedData ? (
         <div className="empty-state">
           <div className="empty-state-icon">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -249,8 +280,8 @@ function BudgetTab() {
               <line x1="9" y1="21" x2="9" y2="9" />
             </svg>
           </div>
-          <h2>No transaction data yet</h2>
-          <p>Connect your bank account in Settings or import a CSV file to start tracking.</p>
+          <h2>No transaction data for selected period</h2>
+          <p>No transactions found for the last {dateRange === '30' ? '30 days' : dateRange === '90' ? '3 months' : dateRange === '180' ? '6 months' : '1 year'}. Try a different time range or import data.</p>
           <button className="btn btn-primary" onClick={() => setCsvModalOpen(true)}>
             Import CSV
           </button>
@@ -290,27 +321,27 @@ function BudgetTab() {
 
           <div className="charts-grid">
             <ChartCard title="Income vs Expenses Over Time" fullWidth>
-              <TimeSeriesChart data={processedData} />
+              <TimeSeriesChart key={`timeseries-${dateRange}`} data={processedData} />
             </ChartCard>
 
             <ChartCard title="Spending by Category">
-              <CategoryChart data={processedData} />
+              <CategoryChart key={`category-${dateRange}`} data={processedData} />
             </ChartCard>
 
             <ChartCard title="Monthly Cash Flow">
-              <CashFlowChart data={processedData} />
+              <CashFlowChart key={`cashflow-${dateRange}`} data={processedData} />
             </ChartCard>
 
             <ChartCard title="Daily Spending Trend">
-              <TrendChart data={processedData} />
+              <TrendChart key={`trend-${dateRange}`} data={processedData} />
             </ChartCard>
 
             <ChartCard title="Income Distribution">
-              <IncomeDistChart data={processedData} />
+              <IncomeDistChart key={`income-${dateRange}`} data={processedData} />
             </ChartCard>
 
             <ChartCard title="Cash Flow Sankey" fullWidth>
-              <SankeyChart data={processedData} />
+              <SankeyChart key={`sankey-${dateRange}`} data={processedData} />
             </ChartCard>
 
             {transactions.length > 0 && (
