@@ -34,12 +34,27 @@ function SankeyChart({ data }) {
       width: containerRef.current.offsetWidth || 800,
       height: 500,
       canvasStyle: 'background: transparent;',
-      spacing: 150,
-      nodeWidth: 20,
+      spacing: 50,
+      nodeWidth: 50,
       fontFamily: "'Inter', sans-serif",
-      fontColor: '#888',
+      fontColor: '#000000ff',
       enableTooltip: true,
-      enableExport: false
+      enableExport: false,
+      tooltipId: 'sankey-tooltip-container',
+      tooltipBorderColor: '#BCBCBC',
+      tooltipBGColor: '#FFFFFF',
+      tooltipTemplate: ({ source, target, value }) => {
+        return `
+          <div style='display:flex;align-items:center;gap:5px;padding:8px;'>
+            <div style='width:15px;height:15px;background-color:${source.color};border-radius:2px;'></div>
+            <div style='font-weight:500;'>${source.title}</div>
+            <div style='color:#666;'>→</div>
+            <div style='width:15px;height:15px;background-color:${target.color};border-radius:2px;'></div>
+            <div style='font-weight:500;'>${target.title}</div>
+            <div style='font-weight:700;'>: $${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+        `;
+      }
     };
 
     // Clear previous chart
