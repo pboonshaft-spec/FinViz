@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/finviz/backend/internal/auth"
@@ -13,7 +14,11 @@ import (
 
 type contextKey string
 
-const userContextKey contextKey = "user"
+const (
+	userContextKey       contextKey = "user"
+	clientContextKey     contextKey = "client"       // The client being acted upon (for advisors)
+	actingAsAdvisorKey   contextKey = "actingAsAdvisor"
+)
 
 func handleRegister(w http.ResponseWriter, r *http.Request) {
 	var req models.RegisterRequest
@@ -31,6 +36,16 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 	if len(req.Password) < 8 {
 		respondError(w, http.StatusBadRequest, "Password must be at least 8 characters")
 		return
+	}
+
+	// Validate and default role
+	role := models.RoleClient
+	if req.Role != "" {
+		if req.Role != models.RoleClient && req.Role != models.RoleAdvisor {
+			respondError(w, http.StatusBadRequest, "Invalid role. Must be 'client' or 'advisor'")
+			return
+		}
+		role = req.Role
 	}
 
 	// Check if user already exists
@@ -54,8 +69,8 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	result, err := db.DB.Exec(
-		"INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)",
-		req.Email, hashedPassword, req.Name,
+		"INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)",
+		req.Email, hashedPassword, req.Name, role,
 	)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to create user")
@@ -77,6 +92,7 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 			ID:    int(userID),
 			Email: req.Email,
 			Name:  req.Name,
+			Role:  role,
 		},
 	})
 }
@@ -97,9 +113,9 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	var passwordHash string
 	err := db.DB.QueryRow(
-		"SELECT id, email, password_hash, name FROM users WHERE email = ?",
+		"SELECT id, email, password_hash, name, role FROM users WHERE email = ?",
 		req.Email,
-	).Scan(&user.ID, &user.Email, &passwordHash, &user.Name)
+	).Scan(&user.ID, &user.Email, &passwordHash, &user.Name, &user.Role)
 
 	if err != nil {
 		respondError(w, http.StatusUnauthorized, "Invalid credentials")
@@ -163,9 +179,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// Get user from database
 		var user models.User
 		err = db.DB.QueryRow(
-			"SELECT id, email, name, created_at, updated_at FROM users WHERE id = ?",
+			"SELECT id, email, name, role, created_at, updated_at FROM users WHERE id = ?",
 			token.UserID,
-		).Scan(&user.ID, &user.Email, &user.Name, &user.CreatedAt, &user.UpdatedAt)
+		).Scan(&user.ID, &user.Email, &user.Name, &user.Role, &user.CreatedAt, &user.UpdatedAt)
 
 		if err != nil {
 			respondError(w, http.StatusUnauthorized, "User not found")
@@ -185,4 +201,150 @@ func getUserFromContext(r *http.Request) *models.User {
 		return nil
 	}
 	return user
+}
+
+// getClientContext retrieves the client being acted upon from the request context
+func getClientContext(r *http.Request) *models.User {
+	client, ok := r.Context().Value(clientContextKey).(*models.User)
+	if !ok {
+		return nil
+	}
+	return client
+}
+
+// getEffectiveUserID returns the user ID to use for data operations
+// If advisor is acting on behalf of client, returns client ID; otherwise returns authenticated user's ID
+func getEffectiveUserID(r *http.Request) int {
+	if client := getClientContext(r); client != nil {
+		return client.ID
+	}
+	user := getUserFromContext(r)
+	if user != nil {
+		return user.ID
+	}
+	return 0
+}
+
+// isActingAsAdvisor returns true if the current request is an advisor acting on behalf of a client
+func isActingAsAdvisor(r *http.Request) bool {
+	acting, ok := r.Context().Value(actingAsAdvisorKey).(bool)
+	return ok && acting
+}
+
+// AdvisorMiddleware ensures the user is an advisor
+func AdvisorMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := getUserFromContext(r)
+		if user == nil {
+			respondError(w, http.StatusUnauthorized, "Not authenticated")
+			return
+		}
+		if !user.IsAdvisor() {
+			respondError(w, http.StatusForbidden, "Advisor access required")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// ClientAccessMiddleware validates advisor has access to specified client
+// Extracts clientId from URL path: /api/advisor/clients/{clientId}/...
+func ClientAccessMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := getUserFromContext(r)
+		if user == nil {
+			respondError(w, http.StatusUnauthorized, "Not authenticated")
+			return
+		}
+		if !user.IsAdvisor() {
+			respondError(w, http.StatusForbidden, "Advisor access required")
+			return
+		}
+
+		// Extract clientId from URL path: /api/advisor/clients/{clientId}/...
+		// Path format: /api/advisor/clients/123/assets
+		pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+		var clientIDStr string
+		// pathParts: ["api", "advisor", "clients", "123", "assets", ...]
+		if len(pathParts) >= 4 && pathParts[0] == "api" && pathParts[1] == "advisor" && pathParts[2] == "clients" {
+			clientIDStr = pathParts[3]
+		}
+		if clientIDStr == "" {
+			respondError(w, http.StatusBadRequest, "Client ID required")
+			return
+		}
+
+		clientID, err := strconv.Atoi(clientIDStr)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "Invalid client ID")
+			return
+		}
+
+		// Verify relationship exists and is active
+		var relationshipID int
+		var accessLevel string
+		err = db.DB.QueryRow(`
+			SELECT id, access_level FROM advisor_clients
+			WHERE advisor_id = ? AND client_id = ? AND status = 'active'
+		`, user.ID, clientID).Scan(&relationshipID, &accessLevel)
+
+		if err != nil {
+			respondError(w, http.StatusForbidden, "No access to this client")
+			return
+		}
+
+		// Load client user
+		var client models.User
+		err = db.DB.QueryRow(
+			"SELECT id, email, name, role, created_at, updated_at FROM users WHERE id = ?",
+			clientID,
+		).Scan(&client.ID, &client.Email, &client.Name, &client.Role, &client.CreatedAt, &client.UpdatedAt)
+
+		if err != nil {
+			respondError(w, http.StatusNotFound, "Client not found")
+			return
+		}
+
+		// Add client context
+		ctx := context.WithValue(r.Context(), clientContextKey, &client)
+		ctx = context.WithValue(ctx, actingAsAdvisorKey, true)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// getAccessLevel returns the access level for the current advisor-client relationship
+func getAccessLevel(r *http.Request) string {
+	user := getUserFromContext(r)
+	client := getClientContext(r)
+	if user == nil || client == nil {
+		return ""
+	}
+
+	var accessLevel string
+	err := db.DB.QueryRow(`
+		SELECT access_level FROM advisor_clients
+		WHERE advisor_id = ? AND client_id = ? AND status = 'active'
+	`, user.ID, client.ID).Scan(&accessLevel)
+
+	if err != nil {
+		return ""
+	}
+	return accessLevel
+}
+
+// canEdit returns true if the current user can edit the target user's data
+func canEdit(r *http.Request) bool {
+	if !isActingAsAdvisor(r) {
+		return true // User editing their own data
+	}
+	level := getAccessLevel(r)
+	return level == models.AccessLevelEdit || level == models.AccessLevelFull
+}
+
+// canRunSimulations returns true if the current user can run simulations for the target
+func canRunSimulations(r *http.Request) bool {
+	if !isActingAsAdvisor(r) {
+		return true // User running their own simulations
+	}
+	return getAccessLevel(r) == models.AccessLevelFull
 }

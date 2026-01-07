@@ -1,30 +1,20 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ClientProvider } from './contexts/ClientContext';
 import AuthPage from './components/auth/AuthPage';
 import BudgetTab from './components/tabs/BudgetTab';
 import NetWorthTab from './components/tabs/NetWorthTab';
+import GoalsTab from './components/tabs/GoalsTab';
 import SettingsTab from './components/tabs/SettingsTab';
+import MessagesTab from './components/tabs/MessagesTab';
 import ChatPanel from './components/chat/ChatPanel';
+import AdvisorDashboard from './components/advisor/AdvisorDashboard';
+import { DocumentVault } from './components/vault';
 
-function AppContent() {
+function ClientPortal() {
   const [activeTab, setActiveTab] = useState('budget');
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const { user, isAuthenticated, loading, logout } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="app">
-        <div className="loading-screen">
-          <div className="loading-spinner"></div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <AuthPage />;
-  }
+  const { user, logout } = useAuth();
 
   return (
     <div className={`app ${isChatOpen ? 'chat-open' : ''}`}>
@@ -75,6 +65,35 @@ function AppContent() {
             Net Worth
           </button>
           <button
+            className={`tab-btn ${activeTab === 'goals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('goals')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            Goals
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'messages' ? 'active' : ''}`}
+            onClick={() => setActiveTab('messages')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Messages
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`}
+            onClick={() => setActiveTab('documents')}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            Documents
+          </button>
+          <button
             className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
           >
@@ -89,13 +108,49 @@ function AppContent() {
         <main className="tab-container">
           {activeTab === 'budget' && <BudgetTab />}
           {activeTab === 'networth' && <NetWorthTab />}
+          {activeTab === 'goals' && <GoalsTab />}
+          {activeTab === 'messages' && <MessagesTab />}
+          {activeTab === 'documents' && <DocumentVault />}
           {activeTab === 'settings' && <SettingsTab />}
         </main>
       </div>
 
-      {/* Chat Panel */}
       <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
+  );
+}
+
+function AppContent() {
+  const { user, isAuthenticated, isAdvisor, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="app">
+        <div className="loading-screen">
+          <div className="loading-spinner"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
+
+  // Route to the appropriate portal based on user role
+  if (isAdvisor) {
+    return (
+      <ClientProvider>
+        <AdvisorDashboard />
+      </ClientProvider>
+    );
+  }
+
+  return (
+    <ClientProvider>
+      <ClientPortal />
+    </ClientProvider>
   );
 }
 

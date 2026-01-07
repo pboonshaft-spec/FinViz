@@ -18,9 +18,10 @@ const DEFAULT_PARAMS = {
   withdrawalStrategy: 'fixed',
   retirementTaxRate: 0.22,
   excludeCreditCardDebt: true,
+  enableGlidePath: false,
 };
 
-function SimulationInputs({ params, onChange, onRun, loading, disabled }) {
+function SimulationInputs({ params, onChange, onRun, loading, disabled, onGenerateReport, reportLoading, hasResults }) {
   const [showGrowthSettings, setShowGrowthSettings] = useState(false);
   const [showRetirementIncome, setShowRetirementIncome] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -305,6 +306,17 @@ function SimulationInputs({ params, onChange, onRun, loading, disabled }) {
                 </div>
               </div>
             </div>
+            <div className="input-row">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={currentParams.enableGlidePath}
+                  onChange={(e) => handleChange('enableGlidePath', e.target.checked)}
+                />
+                <span>Enable Glide Path (Target Date)</span>
+                <span className="checkbox-hint">Auto-adjusts stock/bond allocation by age (90% stocks young → 40% at retirement)</span>
+              </label>
+            </div>
           </div>
         )}
       </div>
@@ -317,6 +329,16 @@ function SimulationInputs({ params, onChange, onRun, loading, disabled }) {
         >
           {loading ? 'Running Simulation...' : 'Run Simulation'}
         </button>
+        {onGenerateReport && (
+          <button
+            className="btn btn-secondary btn-lg"
+            onClick={onGenerateReport}
+            disabled={reportLoading || disabled}
+            title={!hasResults ? 'Run a simulation first to include projections' : 'Generate PDF report'}
+          >
+            {reportLoading ? 'Generating...' : 'Download Report'}
+          </button>
+        )}
         <span className="simulation-info">5,000 Monte Carlo simulations</span>
       </div>
     </div>

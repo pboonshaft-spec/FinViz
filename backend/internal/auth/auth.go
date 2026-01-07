@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"os"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -107,7 +108,7 @@ func ValidateToken(tokenString string) (*Token, error) {
 
 // Helper functions for simple token encoding
 func encodeTokenData(userID int, email string, expiresAt time.Time) string {
-	return string(rune(userID)) + ":" + email + ":" + expiresAt.Format(time.RFC3339)
+	return strconv.Itoa(userID) + ":" + email + ":" + expiresAt.Format(time.RFC3339)
 }
 
 func decodeTokenData(data string) (*Token, error) {
@@ -117,7 +118,10 @@ func decodeTokenData(data string) (*Token, error) {
 		return nil, ErrInvalidToken
 	}
 
-	userID := int([]rune(parts[0])[0])
+	userID, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
 	email := parts[1]
 	expiresAt, err := time.Parse(time.RFC3339, parts[2])
 	if err != nil {

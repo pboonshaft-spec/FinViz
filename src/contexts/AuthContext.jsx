@@ -106,12 +106,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // Role-based helpers
+  const isAdvisor = user?.role === 'advisor';
+  const isClient = user?.role === 'client' || (user && !user.role);
+
   const value = {
     user,
     token,
     loading,
     error,
     isAuthenticated: !!user,
+    isAdvisor,
+    isClient,
     login,
     register,
     logout,
