@@ -70,7 +70,7 @@ function inferDebtType(name) {
 }
 
 function DebtList({ debts, onEdit, onDelete }) {
-  const [collapsedCategories, setCollapsedCategories] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState({});
 
   // Group debts by inferred type
   const groupedDebts = useMemo(() => {
@@ -87,7 +87,7 @@ function DebtList({ debts, onEdit, onDelete }) {
   }, [debts]);
 
   const toggleCategory = (category) => {
-    setCollapsedCategories(prev => ({
+    setExpandedCategories(prev => ({
       ...prev,
       [category]: !prev[category]
     }));
@@ -111,7 +111,7 @@ function DebtList({ debts, onEdit, onDelete }) {
     <div className="categorized-list">
       {categories.map(category => {
         const { debts: categoryDebts, total } = groupedDebts[category];
-        const isCollapsed = collapsedCategories[category];
+        const isExpanded = expandedCategories[category];
         const Icon = DebtIcons[category] || DebtIcons['Other'];
 
         return (
@@ -121,7 +121,7 @@ function DebtList({ debts, onEdit, onDelete }) {
               onClick={() => toggleCategory(category)}
             >
               <div className="category-left">
-                <span className={`collapse-icon ${isCollapsed ? '' : 'open'}`}>&#9656;</span>
+                <span className={`collapse-icon ${isExpanded ? 'open' : ''}`}>&#9656;</span>
                 <span className="category-icon debt-icon">{Icon}</span>
                 <span className="category-name">{category}</span>
                 <span className="category-count">{categoryDebts.length}</span>
@@ -131,7 +131,7 @@ function DebtList({ debts, onEdit, onDelete }) {
               </span>
             </button>
 
-            {!isCollapsed && (
+            {isExpanded && (
               <div className="category-items">
                 {categoryDebts.map(debt => (
                   <div key={debt.id} className="item-card">

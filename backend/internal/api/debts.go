@@ -11,8 +11,8 @@ import (
 )
 
 func handleGetDebts(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
+	userID := getEffectiveUserID(r)
+	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "Not authenticated")
 		return
 	}
@@ -22,7 +22,7 @@ func handleGetDebts(w http.ResponseWriter, r *http.Request) {
 		FROM debts
 		WHERE user_id = ?
 		ORDER BY name
-	`, user.ID)
+	`, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -58,9 +58,14 @@ func handleGetDebts(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCreateDebt(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
+	userID := getEffectiveUserID(r)
+	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "Not authenticated")
+		return
+	}
+
+	if !canEdit(r) {
+		respondError(w, http.StatusForbidden, "No permission to edit client data")
 		return
 	}
 
@@ -77,7 +82,7 @@ func handleCreateDebt(w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.DB.Exec(
 		`INSERT INTO debts (user_id, name, current_balance, interest_rate, minimum_payment) VALUES (?, ?, ?, ?, ?)`,
-		user.ID, req.Name, req.CurrentBalance, req.InterestRate, req.MinimumPayment,
+		userID, req.Name, req.CurrentBalance, req.InterestRate, req.MinimumPayment,
 	)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
@@ -89,9 +94,14 @@ func handleCreateDebt(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleUpdateDebt(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
+	userID := getEffectiveUserID(r)
+	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "Not authenticated")
+		return
+	}
+
+	if !canEdit(r) {
+		respondError(w, http.StatusForbidden, "No permission to edit client data")
 		return
 	}
 
@@ -130,7 +140,7 @@ func handleUpdateDebt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query += " WHERE id = ? AND user_id = ?"
-	args = append(args, id, user.ID)
+	args = append(args, id, userID)
 
 	result, err := db.DB.Exec(query, args...)
 	if err != nil {
@@ -148,9 +158,14 @@ func handleUpdateDebt(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDeleteDebt(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
+	userID := getEffectiveUserID(r)
+	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "Not authenticated")
+		return
+	}
+
+	if !canEdit(r) {
+		respondError(w, http.StatusForbidden, "No permission to edit client data")
 		return
 	}
 
@@ -161,7 +176,7 @@ func handleDeleteDebt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.DB.Exec("DELETE FROM debts WHERE id = ? AND user_id = ?", id, user.ID)
+	result, err := db.DB.Exec("DELETE FROM debts WHERE id = ? AND user_id = ?", id, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return

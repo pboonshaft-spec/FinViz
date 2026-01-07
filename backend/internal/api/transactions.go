@@ -19,6 +19,9 @@ func handleGetTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use effective user ID for client context support
+	userID := getEffectiveUserID(r)
+
 	// Get query params for filtering
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
@@ -39,7 +42,7 @@ func handleGetTransactions(w http.ResponseWriter, r *http.Request) {
 		FROM transactions
 		WHERE user_id = ? AND date >= ? AND date <= ?
 	`
-	args := []interface{}{user.ID, startDate, endDate}
+	args := []interface{}{userID, startDate, endDate}
 
 	if category != "" {
 		query += " AND category = ?"
@@ -112,6 +115,9 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use effective user ID for client context support
+	userID := getEffectiveUserID(r)
+
 	// Get query params for filtering
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
@@ -137,7 +143,7 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 			OR subcategory LIKE 'INCOME%'
 			OR subcategory LIKE 'TRANSFER_IN%'
 		)
-	`, user.ID, startDate, endDate).Scan(&summary.TotalIncome)
+	`, userID, startDate, endDate).Scan(&summary.TotalIncome)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -150,7 +156,7 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 		WHERE user_id = ? AND date >= ? AND date <= ? AND amount > 0 AND pending = FALSE
 		AND category NOT IN ('INCOME', 'INCOME_WAGES', 'INCOME_DIVIDENDS', 'INCOME_INTEREST', 'TRANSFER_IN')
 		AND (subcategory IS NULL OR (subcategory NOT LIKE 'INCOME%' AND subcategory NOT LIKE 'TRANSFER_IN%'))
-	`, user.ID, startDate, endDate).Scan(&summary.TotalExpenses)
+	`, userID, startDate, endDate).Scan(&summary.TotalExpenses)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -167,7 +173,7 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 		AND (subcategory IS NULL OR (subcategory NOT LIKE 'INCOME%' AND subcategory NOT LIKE 'TRANSFER_IN%'))
 		GROUP BY category
 		ORDER BY total DESC
-	`, user.ID, startDate, endDate)
+	`, userID, startDate, endDate)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -207,7 +213,7 @@ func handleGetTransactionSummary(w http.ResponseWriter, r *http.Request) {
 		WHERE user_id = ? AND date >= ? AND date <= ? AND pending = FALSE
 		GROUP BY DATE_FORMAT(date, '%Y-%m')
 		ORDER BY month
-	`, user.ID, startDate, endDate)
+	`, userID, startDate, endDate)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -358,6 +364,9 @@ func handleGetTransactionDebug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use effective user ID for client context support
+	userID := getEffectiveUserID(r)
+
 	type DebugStats struct {
 		TotalCount        int     `json:"totalCount"`
 		IncomeCount       int     `json:"incomeCount"`
@@ -378,7 +387,7 @@ func handleGetTransactionDebug(w http.ResponseWriter, r *http.Request) {
 		SELECT amount, pending, COALESCE(category, 'NULL') as cat, name, date
 		FROM transactions WHERE user_id = ?
 		ORDER BY date DESC
-	`, user.ID)
+	`, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -433,12 +442,15 @@ func handleGetCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Use effective user ID for client context support
+	userID := getEffectiveUserID(r)
+
 	rows, err := db.DB.Query(`
 		SELECT DISTINCT COALESCE(category, 'Uncategorized') as cat
 		FROM transactions
 		WHERE user_id = ?
 		ORDER BY cat
-	`, user.ID)
+	`, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return

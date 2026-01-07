@@ -8,6 +8,7 @@ import AssetForm from '../networth/AssetForm';
 import DebtForm from '../networth/DebtForm';
 import MonteCarloChart from '../networth/MonteCarloChart';
 import SimulationInputs from '../networth/SimulationInputs';
+import ScenarioComparison from '../networth/ScenarioComparison';
 
 function NetWorthTab() {
   const [assets, setAssets] = useState([]);
@@ -20,6 +21,7 @@ function NetWorthTab() {
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState(null);
   const [editingDebt, setEditingDebt] = useState(null);
+  const [showScenarioComparison, setShowScenarioComparison] = useState(false);
 
   const {
     loading,
@@ -33,8 +35,11 @@ function NetWorthTab() {
     createDebt,
     updateDebt,
     deleteDebt,
-    runMonteCarlo
+    runMonteCarlo,
+    generateReport
   } = useApi();
+
+  const [reportLoading, setReportLoading] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -77,6 +82,32 @@ function NetWorthTab() {
       console.error('Failed to run simulation:', err);
     } finally {
       setSimulationLoading(false);
+    }
+  };
+
+  // Generate and download PDF report
+  const handleGenerateReport = async () => {
+    setReportLoading(true);
+    try {
+      const { blob, filename } = await generateReport({
+        includeSimulation: true,
+        simulationParams: simulationParams,
+      });
+
+      // Create download link and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Failed to generate report:', err);
+      alert('Failed to generate report: ' + err.message);
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -270,8 +301,31 @@ function NetWorthTab() {
               onRun={handleRunSimulation}
               loading={simulationLoading}
               disabled={assets.length === 0}
+              onGenerateReport={handleGenerateReport}
+              reportLoading={reportLoading}
+              hasResults={!!projection}
             />
             {projection && <MonteCarloChart projection={projection} />}
+
+            {/* Scenario Comparison Toggle */}
+            {projection && !showScenarioComparison && (
+              <div className="scenario-toggle">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowScenarioComparison(true)}
+                >
+                  Compare Scenarios
+                </button>
+              </div>
+            )}
+
+            {/* Scenario Comparison Panel */}
+            {showScenarioComparison && (
+              <ScenarioComparison
+                baseParams={simulationParams}
+                onClose={() => setShowScenarioComparison(false)}
+              />
+            )}
           </>
         )}
       </ChartCard>

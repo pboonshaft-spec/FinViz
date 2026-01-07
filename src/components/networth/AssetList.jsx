@@ -54,7 +54,7 @@ const AssetIcons = {
 };
 
 function AssetList({ assets, onEdit, onDelete }) {
-  const [collapsedCategories, setCollapsedCategories] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState({});
 
   // Group assets by type
   const groupedAssets = useMemo(() => {
@@ -71,7 +71,7 @@ function AssetList({ assets, onEdit, onDelete }) {
   }, [assets]);
 
   const toggleCategory = (category) => {
-    setCollapsedCategories(prev => ({
+    setExpandedCategories(prev => ({
       ...prev,
       [category]: !prev[category]
     }));
@@ -91,7 +91,7 @@ function AssetList({ assets, onEdit, onDelete }) {
     <div className="categorized-list">
       {categories.map(category => {
         const { assets: categoryAssets, total } = groupedAssets[category];
-        const isCollapsed = collapsedCategories[category];
+        const isExpanded = expandedCategories[category];
         const Icon = AssetIcons[category] || AssetIcons['default'];
 
         return (
@@ -101,7 +101,7 @@ function AssetList({ assets, onEdit, onDelete }) {
               onClick={() => toggleCategory(category)}
             >
               <div className="category-left">
-                <span className={`collapse-icon ${isCollapsed ? '' : 'open'}`}>&#9656;</span>
+                <span className={`collapse-icon ${isExpanded ? 'open' : ''}`}>&#9656;</span>
                 <span className="category-icon asset-icon">{Icon}</span>
                 <span className="category-name">{category}</span>
                 <span className="category-count">{categoryAssets.length}</span>
@@ -111,7 +111,7 @@ function AssetList({ assets, onEdit, onDelete }) {
               </span>
             </button>
 
-            {!isCollapsed && (
+            {isExpanded && (
               <div className="category-items">
                 {categoryAssets.map(asset => (
                   <div key={asset.id} className="item-card">

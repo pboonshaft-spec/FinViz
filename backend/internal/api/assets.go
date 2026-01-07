@@ -36,8 +36,8 @@ func handleGetAssetTypes(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGetAssets(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
+	userID := getEffectiveUserID(r)
+	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "Not authenticated")
 		return
 	}
@@ -49,7 +49,7 @@ func handleGetAssets(w http.ResponseWriter, r *http.Request) {
 		JOIN asset_types t ON a.type_id = t.id
 		WHERE a.user_id = ?
 		ORDER BY a.name
-	`, user.ID)
+	`, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -90,9 +90,14 @@ func handleGetAssets(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCreateAsset(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
+	userID := getEffectiveUserID(r)
+	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "Not authenticated")
+		return
+	}
+
+	if !canEdit(r) {
+		respondError(w, http.StatusForbidden, "No permission to edit client data")
 		return
 	}
 
@@ -109,7 +114,7 @@ func handleCreateAsset(w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.DB.Exec(
 		`INSERT INTO assets (user_id, name, type_id, current_value, custom_return, custom_volatility) VALUES (?, ?, ?, ?, ?, ?)`,
-		user.ID, req.Name, req.TypeID, req.CurrentValue, req.CustomReturn, req.CustomVolatility,
+		userID, req.Name, req.TypeID, req.CurrentValue, req.CustomReturn, req.CustomVolatility,
 	)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
@@ -121,9 +126,14 @@ func handleCreateAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleUpdateAsset(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
+	userID := getEffectiveUserID(r)
+	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "Not authenticated")
+		return
+	}
+
+	if !canEdit(r) {
+		respondError(w, http.StatusForbidden, "No permission to edit client data")
 		return
 	}
 
@@ -166,7 +176,7 @@ func handleUpdateAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query += " WHERE id = ? AND user_id = ?"
-	args = append(args, id, user.ID)
+	args = append(args, id, userID)
 
 	result, err := db.DB.Exec(query, args...)
 	if err != nil {
@@ -184,9 +194,14 @@ func handleUpdateAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDeleteAsset(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
+	userID := getEffectiveUserID(r)
+	if userID == 0 {
 		respondError(w, http.StatusUnauthorized, "Not authenticated")
+		return
+	}
+
+	if !canEdit(r) {
+		respondError(w, http.StatusForbidden, "No permission to edit client data")
 		return
 	}
 
@@ -197,7 +212,7 @@ func handleDeleteAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.DB.Exec("DELETE FROM assets WHERE id = ? AND user_id = ?", id, user.ID)
+	result, err := db.DB.Exec("DELETE FROM assets WHERE id = ? AND user_id = ?", id, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
